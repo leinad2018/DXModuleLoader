@@ -52,8 +52,8 @@ export class DXModuleLoader {
         return paths;
     }
 
-    private async loadModules(moduleList: string[]): Promise<Set<string>> {
-        let loadedDependencies: Set<string> = new Set<string>();
+    private async loadModules(moduleList: string[]): Promise<Map<string, any>> {
+        let loadedDependencies: Map<string, any> = new Map();
         let promises: Promise<void>[] = [];
         for (let modulePath of moduleList) {
             promises.push(this.loadModule(modulePath, loadedDependencies));
@@ -61,36 +61,48 @@ export class DXModuleLoader {
         await Promise.all(promises);
         return loadedDependencies;
     }
-    
-    private async loadModule(modulePath: string, loadedDependencies: Set<string>): Promise<void>{
-        loadedDependencies.add(modulePath);
-        let mainModule = await this.importModule(modulePath);
-        let moduleObj = this.constructModule(mainModule);
-        let subDependencies = moduleObj.reqDependencies();
-        let promises: Promise<void>[] = []
-        for(let sub of subDependencies){
-            promises.push(this.loadModule(sub, loadedDependencies));
+
+    private async loadModule(modulePath: string, loadedDependencies: Map<string, any>): Promise<void> {
+
+        let moduleClass = (await this.importModule(modulePath)).default;
+        let newModule = this.registerDependency(modulePath, moduleClass, loadedDependencies);
+        if (newModule) {
+            let moduleObj = this.constructModule(moduleClass);
+            let subDependencies = moduleObj.reqDependencies();
+            let promises: Promise<void>[] = []
+            for (let sub of subDependencies) {
+                promises.push(this.loadModule(sub, loadedDependencies));
+            }
+            await Promise.all(promises);
         }
-        await Promise.all(promises);
+    }
+
+    private registerDependency(modulePath: string, moduleClass: any, loadedDependencies: Map<string, any>): boolean {
+        let mod: any = loadedDependencies.get(modulePath);
+        if (mod) {
+            return false;
+        } else {
+            loadedDependencies.set(modulePath, moduleClass);
+            return true;
+        }
     }
 
     private async importModule(modulePath: string): Promise<any> {
         let moduleClass: any;
         try {
             //Try to load module from the module library
-            moduleClass = await import("D:/Daniel/Documents/Github/DXModuleLoader/output/module_library/" + modulePath);
+            moduleClass = await import("../module_library/" + modulePath);
         } catch (e) {
             console.log(e);
             //Module is a custom module
-            moduleClass = await import("./custom_modules/" + modulePath);
+            moduleClass = await import("../custom_modules/" + modulePath);
         }
 
         return moduleClass;
     }
 
-    private constructModule(moduleClass: any): IModule{
-        console.log(moduleClass.default);
-        return <IModule>(new moduleClass.default());
+    private constructModule(moduleClass: any): IModule {
+        return <IModule>(new moduleClass());
     }
 
     public async start(): Promise<void> {
