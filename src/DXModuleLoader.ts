@@ -4,6 +4,8 @@ import IModule from "IModule";
  * Loads Modules from the module library and from custom modules
  */
 export class DXModuleLoader {
+    private _dependencies: Map<string, any> = new Map();
+
     /**
      * Loads explicit modules and detects implicit modules
      */
@@ -12,28 +14,31 @@ export class DXModuleLoader {
         console.log(modList);
         let dependencies = this.loadModules(modList);
         console.log("Printing Dependencies");
-        (await dependencies).forEach(x => console.log(x));
+        let allDependencies = await dependencies;
+        allDependencies.forEach(x => console.log(x));
+        this._dependencies = allDependencies;
     }
 
     /**
      * Verifies module dependencies for both explicit and implicit modules
      */
     private Initialize(): void {
-
+        //TODO Check circular dependencies and versioning
+        //The initialize portion of the module loader needs to make sure that no mistakes were made when choosing modules
     }
 
     /**
      * Constructs system modules and injects dependencies
      */
     private PostInitialize(): void {
-
+        
     }
 
     /**
      * Parses the mod list xml document and returns an array of module paths
      */
     private parseXML(): Array<string> {
-        //TODO
+        //TODO support multiple module types
         let fs = require('fs');
         let xml2js = require('xml2js');
         let parser = new xml2js.Parser({ attrkey: "ATTR" });
